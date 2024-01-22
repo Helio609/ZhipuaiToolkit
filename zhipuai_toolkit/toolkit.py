@@ -2,10 +2,11 @@ import inspect
 from typing import List, Dict, Any, Callable
 
 class Tool:
-    ZHIPUAI_TOOLS = []  # 类变量，用于存储工具信息
+    AVAILABLE_TOOLS = []  # 存储可用工具信息
+    ZHIPUAI_TOOLS = []  # 存储工具信息
 
     @classmethod
-    def dispatch(cls, func_name: str, params: Dict[str, Any], raise_error: bool = True) -> Any:
+    def dispatch(cls, func_name: str, params: Dict[str, Any], raise_error: bool = False) -> Any:
         # 在ZHIPUAI_TOOLS中查找具有给定名称的函数
         for tool in cls.ZHIPUAI_TOOLS:
             if tool['meta']['function']['name'] == func_name:
@@ -36,6 +37,33 @@ class Tool:
     @classmethod
     def get_tools(cls) -> List[Dict[str, Any]]:
         return [tool["meta"] for tool in cls.ZHIPUAI_TOOLS]
+
+    @classmethod
+    def load_tool(cls, tool_name: str):
+        # 检查工具是否已经加载
+        for tool in cls.ZHIPUAI_TOOLS:
+            if tool['meta']['function']['name'] == tool_name:
+                return f"Tool '{tool_name}' is already loaded."
+        # 如果工具未加载，则从AVAILABLE_TOOLS中查找并添加到ZHIPUAI_TOOLS
+        for tool in cls.AVAILABLE_TOOLS:
+            if tool['meta']['function']['name'] == tool_name:
+                cls.ZHIPUAI_TOOLS.append(tool)
+                return f"Tool '{tool_name}' loaded successfully."
+        return f"Tool '{tool_name}' not found in AVAILABLE_TOOLS."
+
+    @classmethod
+    def unload_tool(cls, tool_name: str):
+        # 在ZHIPUAI_TOOLS中查找名为tool_name的工具并删除
+        for tool in cls.ZHIPUAI_TOOLS:
+            if tool['meta']['function']['name'] == tool_name:
+                cls.ZHIPUAI_TOOLS.remove(tool)
+                return f"Tool '{tool_name}' unloaded successfully."
+        return f"Tool '{tool_name}' not found in ZHIPUAI_TOOLS."
+
+    @classmethod
+    def list_available_tools(cls):
+        # 列出所有的AVAILABLE_TOOLS中的函数名称和函数描述。
+        return [(tool['meta']['function']['name'], tool['meta']['function']['description']) for tool in cls.AVAILABLE_TOOLS]
 
     def __init__(self, name=None, description='', params=None, required_params=None):
         self.name = name
@@ -68,8 +96,29 @@ class Tool:
             }
         }
 
-        # 将meta信息和函数本身加入到ZHIPUAI_TOOLS列表中
-        Tool.ZHIPUAI_TOOLS.append({"meta": meta, "func": func})
+        # 将meta信息和函数本身加入到AVAILABLE_TOOLS列表中
+        Tool.AVAILABLE_TOOLS.append({"meta": meta, "func": func})
 
         # 返回原函数
         return func
+
+class BaseTool:
+    @staticmethod
+    @Tool(name='load_tool', description='加载工具', params={'tool_name': {'type': 'string', 'description': '工具名称'}}, required_params=['tool_name'])
+    def load_tool(tool_name: str):
+        Tool.load_tool(tool_name)
+        return f"Tool '{tool_name}' loaded successfully."
+    @staticmethod
+    @Tool(name='unload_tool', description='卸载工具', params={'tool_name': {'type': 'string', 'description': '工具名称'}}, required_params=['tool_name'])
+    def unload_tool(tool_name: str):
+        Tool.unload_tool(tool_name)
+        return f"Tool '{tool_name}' unloaded successfully."
+    @staticmethod
+    @Tool(name='list_tools', description='列出所有可用工具', params={}, required_params=[])
+    def list_tools():
+        return Tool.list_available_tools()
+
+Tool.list_available_tools()
+Tool.load_tool('list_tools')
+Tool.load_tool('load_tool')
+Tool.load_tool('unload_tool')
